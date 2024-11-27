@@ -35,7 +35,7 @@ pip install -r requirements.txt
 python3 joern.py
 ```
 
-**注意：** 首先，测试代码主要展现了 **Stmt** 的案例，我们还在AST、CFG、CG等结构上提供了适配于Stmt的接口，适用于进行过程间分析。此外，在[joern.py](joern.py)中提供了自行打开Joern服务的`start_joern_service()`函数和自行关闭Joern服务的`close_cpg()`函数，因此，用户无需自行打开/关闭Joern服务。我们与Joern交互是通过[cpgqls-client-python](https://github.com/joernio/cpgqls-client-python)提供的代码实现的，交互的主要逻辑是向Joern客户端发送查询语句，而后获取查询结果。最后，我们将使用Joern过程中所用到的查询语句和发现的问题记录在了[Joern Document](Joern Document.pdf)中，希望能够为各位提供一定的帮助。
+**注意：** 首先，测试代码主要展现了 **Stmt** 的案例，我们还在AST、CFG、CG等结构上提供了适配于Stmt的接口，适用于进行过程间分析。此外，在[joern.py](joern.py)中提供了自行打开Joern服务的`start_joern_service()`函数和自行关闭Joern服务的`close_cpg()`函数，因此，用户无需自行打开/关闭Joern服务。我们与Joern交互是通过[cpgqls-client-python](https://github.com/joernio/cpgqls-client-python)提供的代码实现的，交互的主要逻辑是向Joern客户端发送查询语句，而后获取查询结果。最后，我们将使用Joern过程中所用到的查询语句和发现的问题记录在了 [Joern Document](Joern Document.pdf) 中，希望能够为各位提供一定的帮助。
 
 ### Stmt案例
 
