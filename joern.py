@@ -83,6 +83,9 @@ class JoernServer():
                 shutil.rmtree(self.query_result_path)
             self.joern_client.execute(close_query(self.project_name))
             self.joern_client.execute(exit_joern())
+            json_file_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")), "temp.json")
+            if os.path.exists(json_file_path):
+                 os.remove(json_file_path)
         except:
             pass
         self.log_manager.log_info(f"Joern Service Shut Down Successfully!", False, self.log_level)
@@ -231,7 +234,7 @@ class JoernServer():
                 try:
                     # 替换特殊字符
                     input_string = text
-                    characters_to_remove = ["\r", "\n", "\t", "\b", "\f"]
+                    characters_to_remove = ["\r", "\n", "\t", "\b", "\f", "\\"]
                     for char in characters_to_remove:
                         input_string = input_string.replace(char, "")
                     # 删除旧文件
