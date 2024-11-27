@@ -85,7 +85,7 @@ class JoernServer():
             self.joern_client.execute(exit_joern())
             json_file_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")), "temp.json")
             if os.path.exists(json_file_path):
-                 os.remove(json_file_path)
+                os.remove(json_file_path)
         except:
             pass
         self.log_manager.log_info(f"Joern Service Shut Down Successfully!", False, self.log_level)
