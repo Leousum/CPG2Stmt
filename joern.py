@@ -1,14 +1,10 @@
 import os
 import copy
 import json
-import sys
 import time
 import shutil
 import subprocess
-autopoc_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-static_analysis_path = os.path.join(autopoc_path, "static_analysis")
-sys.path.append(autopoc_path)
-sys.path.append(static_analysis_path)
+
 from utils.log_manager import LogManager
 from stmt.control_structure import ControlStructure
 from stmt.stmt_data import Obj, ObjField, Variable, Literal, Operation, Temporary
@@ -20,6 +16,7 @@ class JoernServer():
     def __init__(self, config_file, repo_path, log_manager, checkout_tag = None):
         # You can start local joern service manually with the command "joern --server --server-host localhost --server-port 8989"
         self.log_level = 0
+        self.config_file = config_file
         self.repo_path = repo_path
         self.log_manager = log_manager
         self.log_manager.log_info(f'Start Static Analysis', True, 0)
@@ -46,6 +43,8 @@ class JoernServer():
         with open(self.type_map_path, "r", encoding = "utf-8") as f:
             self.type_map = json.load(f)
         self.variable_types = list(self.type_map.keys()) # 变量类型列表
+        self.MAX_QUERY_COUNT = 2200
+        self.query_count = 0
 
     def start_joern_service(self, server_point):
         try:
@@ -58,6 +57,25 @@ class JoernServer():
             self.log_manager.log_info(f"Joern Service Start Successfully!", False, self.log_level)
         except:
             self.log_manager.log_info(f"Joern Service Start Failed!", False, self.log_level)
+    
+    def restart_joern_service(self):
+        try:
+            self.close_cpg()
+            self.query_count = 0
+            server_point = self.config_file["joern_server_point"]
+            # port = server_point[server_point.find(":") + 1:]
+            # os.system(f"fuser -k {port}/tcp") # TODO: 判断是否需要此命令
+            self.start_joern_service(server_point)
+            self.joern_client = CPGQLSClient(server_point)
+            self.log_manager.log_info(f'Restarting CPG...', False, 1)
+            if os.path.exists(self.cpg_path):
+                self.joern_client.execute(import_cpg_query(self.cpg_path))
+            else:
+                self.joern_client.execute(import_code_query(self.repo_path, self.project_name))
+            self.log_manager.log_cost("restart_count", 1)
+        except Exception as e:
+            self.log_manager.log_info(f"Joern Service Restart Failed!", False, self.log_level)
+            raise(e)
 
     def close_cpg(self):
         try:
@@ -210,6 +228,32 @@ class JoernServer():
         try:
             if text.find("[") != -1 and text.rfind("]") != -1:
                 text = text[text.find("["):text.rfind("]") + 1]
+                try:
+                    # 替换特殊字符
+                    input_string = text
+                    characters_to_remove = ["\r", "\n", "\t", "\b", "\f"]
+                    for char in characters_to_remove:
+                        input_string = input_string.replace(char, "")
+                    # 删除旧文件
+                    txt_file_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")), "temp.txt")
+                    if os.path.exists(txt_file_path):
+                        os.remove(txt_file_path)
+                    json_file_path = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")), "temp.json")
+                    if os.path.exists(json_file_path):
+                        os.remove(json_file_path)
+                    # 存入txt文件
+                    with open(txt_file_path, "w", encoding = "utf-8") as txt_file:
+                        txt_file.write(input_string)
+                    # 更改文件后缀
+                    os.rename(txt_file_path, json_file_path)
+                    # 从json文件读取内容
+                    if os.path.exists(json_file_path):
+                        with open(json_file_path, 'r', encoding = "utf-8") as json_file:
+                            result = json.load(json_file)
+                            if isinstance(result, list):
+                                return result
+                except:
+                    pass
                 infos = text.split("\n")
                 text = "".join(infos).strip()
                 text_list = json.loads(text.replace("\\", ""))
@@ -246,8 +290,17 @@ class JoernServer():
                 nodes = list()
         if not is_queried:
             try:
-                query_result = self.joern_client.execute(query)["stdout"]
+                # 2024年10月10日发现: Joern查询次数达到2600次以上时就会崩溃,我们需要自动重启Joern服务
+                if self.query_count >= self.MAX_QUERY_COUNT:
+                    self.restart_joern_service()
+                query_result = None
+                try:
+                    query_result = self.joern_client.execute(query)["stdout"]
+                except:
+                    self.restart_joern_service()
+                    query_result = self.joern_client.execute(query)["stdout"]
                 query_result = query_result[query_result.find("=") + 1:].strip()
+                self.query_count += 1
                 nodes = self.str2list(query_result)
                 self.log_manager.log_info(f"CPG Query Success: {query}", False, self.log_level)
                 try:
